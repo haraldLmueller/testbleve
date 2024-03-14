@@ -1,0 +1,43 @@
+{
+    "@context": [
+        "https://www.w3.org/2022/wot/td/v1.1",
+        {
+            "saref": "https://w3id.org/saref#",
+            "om": "http://www.ontology-of-units-of-measure.org/resource/om-2/",
+            "schema": "https://schema.org" 
+        }
+    ],
+    "version": {
+        "instance": "1.2.1",
+        "schema:softwareVersion": "1.0.1"
+    },
+    "schema:serialNumber": "4CE0460D0G",
+    "schema:manufacturer": {"name": "CompanyName"},
+    "@type": "saref:TemperatureSensor",
+    "properties": {
+        "temperature": {
+            "description": "Temperature value of the weather station",
+            "type": "number",
+            "minimum": -32.5,
+            "maximum": 55.2,
+            "unit": "om:degreeCelsius",
+            "forms":[{
+                "op": "readproperty",
+                "href": "coaps://rs.example.com/status",
+                "contentType": "application/cbor",
+                "cov:methodName": "GET",
+                "ace:scopes": ["limited"]
+            }]
+        },
+        "position": {
+            "type": "object",
+            "@type": "schema:GeoCoordinates",
+            "properties": {
+                    "longitude": { "type": "number" },
+                    "latitude":  { "type": "number" },
+                    "elevation": { "type": "number" }
+            },
+            "forms": [{"href": "https://robot.example.com/position"}]
+        }
+    }
+}

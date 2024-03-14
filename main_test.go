@@ -27,6 +27,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,12 +43,7 @@ func Test_Bleve(t *testing.T) {
 	index, err := bleve.NewUsing(catalogPath, indexMapping, bleve.Config.DefaultIndexType, bleve.Config.DefaultKVStore, nil)
 	assert.NoError(t, err)
 	testperson := insertToIndex(index, nil)
-	q := bleve.NewQueryStringQuery("+" + testperson.Name.First + " +" + testperson.Name.Last)
-	req := bleve.NewSearchRequestOptions(q, 100, 0, false)
-	res, err := index.Search(req)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(res.Hits))
-	assert.Equal(t, "person50", res.Hits[0].ID)
+	testContent(testperson, index, t)
 	index.Close()
 }
 
@@ -60,12 +56,7 @@ func Test_BleveBatch(t *testing.T) {
 	testperson := insertToIndex(nil, batch)
 	err = index.Batch(batch)
 	assert.NoError(t, err)
-	q := bleve.NewQueryStringQuery("+" + testperson.Name.First + " +" + testperson.Name.Last)
-	req := bleve.NewSearchRequestOptions(q, 100, 0, false)
-	res, err := index.Search(req)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(res.Hits))
-	assert.Equal(t, "person50", res.Hits[0].ID)
+	testContent(testperson, index, t)
 	index.Close()
 }
 
@@ -75,14 +66,45 @@ func Test_BleveWithDelay(t *testing.T) {
 	index, err := bleve.NewUsing(catalogPath, indexMapping, bleve.Config.DefaultIndexType, bleve.Config.DefaultKVStore, nil)
 	assert.NoError(t, err)
 	testperson := insertToIndex(index, nil)
-	q := bleve.NewQueryStringQuery("+" + testperson.Name.First + " +" + testperson.Name.Last)
+	time.Sleep(time.Second * 60)
+	testContent(testperson, index, t)
+	index.Close()
+}
+
+func testContent(testperson Person, index bleve.Index, t *testing.T) {
+	var qstr strings.Builder
+	qstr.WriteString("+Name.First:")
+	qstr.WriteString(testperson.Name.First)
+	qstr.WriteString(" +")
+	qstr.WriteString(testperson.Name.Last)
+	qstr.WriteString(" +City:")
+	qstr.WriteString(testperson.City)
+	q := bleve.NewQueryStringQuery(qstr.String())
 	req := bleve.NewSearchRequestOptions(q, 100, 0, false)
-	time.Sleep(time.Second * 40)
 	res, err := index.Search(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(res.Hits))
 	assert.Equal(t, "person50", res.Hits[0].ID)
-	index.Close()
+
+	q = bleve.NewQueryStringQuery("properties.temperature.unit:om\\:degreeCelsius")
+	req = bleve.NewSearchRequestOptions(q, 100, 0, false)
+	res, err = index.Search(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(res.Hits))
+	assert.Equal(t, "tm1", res.Hits[0].ID)
+}
+
+func insertTmToIndex(index bleve.Index, batch *bleve.Batch) {
+	bytedata, err := os.ReadFile("thingmodel/tm1.jsonld")
+	checkFatal(err, "read in TM")
+	var objData any
+	json.Unmarshal(bytedata, &objData)
+	if batch != nil {
+		batch.Index("tm1", objData)
+	} else {
+		index.Index("tm1", objData)
+	}
+
 }
 
 func insertToIndex(index bleve.Index, batch *bleve.Batch) Person {
@@ -105,6 +127,7 @@ func insertToIndex(index bleve.Index, batch *bleve.Batch) Person {
 			checkFatal(err, "create test person")
 		}
 	}
+	insertTmToIndex(index, batch)
 	return testperson
 }
 
@@ -148,7 +171,7 @@ func checkFatal(err error, txt string) {
 	}
 }
 
-var names = []string{"James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda", "David", "Elizabeth", "William", "Barbara", "Richard",
+var names = []string{"伟", "Анастасия", "Александр", "الکساندر", "James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda", "David", "Elizabeth", "William", "Barbara", "Richard",
 	"Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen", "Christopher", "Lisa", "Daniel", "Nancy", "Matthew", "Betty", "Anthony",
 	"Margaret", "Mark", "Sandra", "Donald", "Ashley", "Steven", "Kimberly", "Paul", "Emily", "Andrew", "Donna", "Joshua", "Michelle", "Kenneth",
 	"Carol", "Kevin", "Amanda", "Brian", "Dorothy", "George", "Melissa", "Timothy", "Deborah", "Ronald", "Stephanie", "Edward", "Rebecca", "Jason",
@@ -163,7 +186,7 @@ var names = []string{"James", "Mary", "Robert", "Patricia", "John", "Jennifer", 
 	"Albert", "Denise", "Willie", "Amber", "Alan", "Doris", "Juan", "Marilyn", "Wayne", "Danielle", "Elijah", "Beverly", "Randy", "Isabella",
 	"Roy", "Theresa", "Vincent", "Diana", "Ralph", "Natalie", "Eugene", "Brittany", "Russell", "Charlotte", "Bobby", "Marie", "Mason", "Kayla",
 	"Philip", "Alexis", "Louis", "Lori"}
-var lastNames = []string{"Abraham", "Allan", "Alsop", "Anderson", "Arnold", "Avery", "Bailey", "Baker", "Ball", "Bell", "Berry", "Black", "Blake", "Bond",
+var lastNames = []string{"张", "அலெக்சாண்டர்", "Abraham", "Allan", "Alsop", "Anderson", "Arnold", "Avery", "Bailey", "Baker", "Ball", "Bell", "Berry", "Black", "Blake", "Bond",
 	"Bower", "Brown", "Buckland", "Burgess", "Butler", "Cameron", "Campbell", "Carr", "Chapman", "Churchill", "Clark", "Clarkson", "Coleman", "Cornish",
 	"Davidson", "Davies", "Dickens", "Dowd", "Duncan", "Dyer", "Edmunds", "Ellison", "Ferguson", "Fisher", "Forsyth", "Fraser", "Gibson", "Gill", "Glover",
 	"Graham", "Grant", "Gray", "Greene", "Hamilton", "Hardacre", "Harris", "Hart", "Hemmings", "Henderson", "Hill", "Hodges", "Howard", "Hudson", "Hughes",
